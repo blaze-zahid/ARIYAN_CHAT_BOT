@@ -22,7 +22,7 @@ module.exports = {
     // ========== OWNER INFO ==========
     const authorName = "— 𝚳 𝚨 Ꭱ 𝐂 𝚶 ⤹ ☕";
     const ownAge = "18+";
-    const messenger = "https://m.me/Bhodro.habib";
+    const messenger = "https://m.me/xahid.prime";
     const authorFB = "Zahid Talukdar";
     const authorNumber = "8801863229224";
     const Status = "Single";
