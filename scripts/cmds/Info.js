@@ -23,12 +23,12 @@ module.exports = {
     const authorName = "♡┋𝐚𝐫𝐢𝐲𝐚𝐧ᥫ᭡";
     const ownAge = "20+";
     const messenger = "https://m.me/Bhodro.habib";
-    const authorFB = "Sk Sabbir Boss";
-    const authorNumber = "01705219039";
+    const authorFB = "Zahid Talukdar";
+    const authorNumber = "8801863229224";
     const Status = "Single";
 
     // Facebook Profile ID (এখানে তোমার FB ID দাও)
-    const OWNER_FB_ID = "100028959431665";
+    const OWNER_FB_ID = "100077365033183";
 
     // ========== TIME ==========
     const now = moment().tz("Asia/Kolkata");
