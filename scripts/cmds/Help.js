@@ -507,4 +507,4 @@ function roleTextToString(role, lang) {
 	}
 
 	return `${role ?? 0} (Unknown)`;
-		}
+				}
