@@ -8,7 +8,7 @@ module.exports = {
     name: "info",
     aliases: ["admininfo", "botinfo", "mamun", "ownerinfo", "owner"],
     version: "1.5",
-    author: "亗🅼🅰ᥫᩣ🅼ᥫᩣ🆄🅽×͜×",
+    author: "— 𝚳 𝚨 Ꭱ 𝐂 𝚶 ⤹ ☕",
     countDown: 5,
     role: 0,
     shortDescription: { en: "Show bot & owner info" },
@@ -20,8 +20,8 @@ module.exports = {
   onStart: async function ({ message, api }) {
 
     // ========== OWNER INFO ==========
-    const authorName = "♡┋𝐚𝐫𝐢𝐲𝐚𝐧ᥫ᭡";
-    const ownAge = "20+";
+    const authorName = "— 𝚳 𝚨 Ꭱ 𝐂 𝚶 ⤹ ☕";
+    const ownAge = "18+";
     const messenger = "https://m.me/Bhodro.habib";
     const authorFB = "Zahid Talukdar";
     const authorNumber = "8801863229224";
@@ -31,7 +31,7 @@ module.exports = {
     const OWNER_FB_ID = "100077365033183";
 
     // ========== TIME ==========
-    const now = moment().tz("Asia/Kolkata");
+    const now = moment().tz("Asia/Dhaka");
     const date = now.format("MMMM Do YYYY");
     const time = now.format("h:mm:ss A");
 
