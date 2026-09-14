@@ -4,7 +4,7 @@
 module.exports = {
   config: {
     name: "sexvid",
-    aliases: ["sex","sexvid"],
+    aliases: ["sexrtt","sexvidrtr"],
     version: "2.0",
     author: "nexo_here",
     countDown: 30,
