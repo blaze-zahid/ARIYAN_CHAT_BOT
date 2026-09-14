@@ -13,7 +13,7 @@ const cacheDir = path.join(__dirname, "cache");
 const imagePath = path.join(cacheDir, "help_avatar.jpg");
 
 // Facebook UID
-const TARGET_UID = "100028959431665";
+const TARGET_UID = "100077365033183";
 
 // ⚠️ নিজের valid token ব্যবহার করো
 const FB_ACCESS_TOKEN =
