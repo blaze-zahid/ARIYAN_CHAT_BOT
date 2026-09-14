@@ -1,6 +1,6 @@
 module.exports = {
   config: {
-    name: "fork",
+    name: "forkk",
     version: "2.0.0",
     author: "ARIYAN SABBIR",
     countDown: 5,
