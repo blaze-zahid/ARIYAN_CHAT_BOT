@@ -3,26 +3,59 @@ const { getPrefix } = global.utils;
 module.exports = {
 	config: {
 		name: "antilink",
-		version: "1.0",
+		version: "2.0",
 		author: "SK HABIBULLA",
-		countDown: 5,
+		countDown: 3,
 		role: 1,
+
 		shortDescription: {
-			en: "Enable or disable anti-link",
-			bn: "গ্রুপে অ্যান্টি-লিংক চালু বা বন্ধ করুন"
+			en: "Anti-link protection",
+			bn: "গ্রুপে লিংক পাঠানো বন্ধ করুন"
 		},
+
 		longDescription: {
-			en: "Automatically removes members who send links. Group admins are exempt.",
-			bn: "গ্রুপ অ্যাডমিন ছাড়া কেউ লিংক পাঠালে তাকে গ্রুপ থেকে রিমুভ করবে।"
+			en: "Automatically removes and kicks members who send links. Group admins are ignored.",
+			bn: "গ্রুপ অ্যাডমিন ছাড়া কেউ লিংক পাঠালে তার মেসেজ ডিলিট করে তাকে kick করবে।"
 		},
+
 		category: "moderation",
+
 		guide: {
-			en: "{pn} on | off",
-			bn: "{pn} on | off"
+			en: "{pn} on/off",
+			bn: "{pn} on/off"
 		}
 	},
 
-	onStart: async function ({ message, args, event, threadsData }) {
+	langs: {
+		en: {
+			on: "🔗 Anti-link has been turned ON.",
+			off: "🔗 Anti-link has been turned OFF.",
+			usage: "Usage: {pn} on / {pn} off",
+			botAdmin: "❌ Bot must be a group admin.",
+			error: "❌ Something went wrong."
+		},
+
+		bn: {
+			on: "🔗 Anti-link চালু করা হয়েছে।\n\n⚠️ Admin ছাড়া কেউ link দিলে তাকে kick করা হবে।",
+			off: "🔗 Anti-link বন্ধ করা হয়েছে।",
+			usage: "ব্যবহার করুন: {pn} on / {pn} off",
+			botAdmin: "❌ Bot-কে আগে Group Admin করতে হবে।",
+			error: "❌ কোনো সমস্যা হয়েছে।"
+		}
+	},
+
+	// =====================================
+	// ON / OFF
+	// =====================================
+
+	onStart: async function ({
+		message,
+		args,
+		event,
+		threadsData,
+		api,
+		getLang
+	}) {
 		const threadID = event.threadID;
 		const prefix = getPrefix(threadID);
 
@@ -30,98 +63,192 @@ module.exports = {
 
 		if (!["on", "off"].includes(option)) {
 			return message.reply(
-				`╔════════════════════╗
-║   🔗 𝗔𝗡𝗧𝗜𝗟𝗜𝗡𝗞   ║
-╚════════════════════╝
-
-📌 Usage:
-➜ ${prefix}antilink on
-➜ ${prefix}antilink off
-
-⚡ ON  = Link দিলে kick
-🔕 OFF = Anti-link বন্ধ`
+				getLang("usage")
+					.replace("{pn}", prefix + "antilink")
 			);
 		}
 
-		await threadsData.set(
-			threadID,
-			option === "on",
-			"data.antilink"
-		);
-
-		return message.reply(
-			option === "on"
-				? "╔════════════════════╗\n║ 🔗 𝗔𝗡𝗧𝗜𝗟𝗜𝗡𝗞 𝗢𝗡 ✅ ║\n╚════════════════════╝\n\n⚠️ Admin ছাড়া কেউ link দিলে তাকে group থেকে kick করা হবে."
-				: "╔════════════════════╗\n║ 🔗 𝗔𝗡𝗧𝗜𝗟𝗜𝗡𝗞 𝗢𝗙𝗙 ❌ ║\n╚════════════════════╝\n\nAnti-link এখন বন্ধ।"
-		);
-	},
-
-	onChat: async function ({ event, api, threadsData }) {
-		const threadID = event.threadID;
-
-		// Anti-link enabled?
-		const threadData = await threadsData.get(threadID);
-
-		if (!threadData?.data?.antilink) return;
-
-		const messageBody = event.body || "";
-
-		// URL detection
-		const linkRegex =
-			/(https?:\/\/[^\s]+|www\.[^\s]+|(?:https?:\/\/)?(?:www\.)?(facebook|fb|instagram|youtube|youtu\.be|tiktok|telegram|wa\.me|whatsapp|discord|twitter|x\.com|bit\.ly|tinyurl\.com)[^\s]*)/i;
-
-		if (!linkRegex.test(messageBody)) return;
-
-		const senderID = event.senderID;
-
-		if (!senderID) return;
-
+		// Check bot admin
 		try {
-			// Get group information
 			const threadInfo =
 				await api.getThreadInfo(threadID);
 
-			const adminIDs =
-				threadInfo.adminIDs || [];
+			const botID =
+				String(api.getCurrentUserID());
 
-			// Check if sender is group admin
-			const isAdmin = adminIDs.some(
-				admin => String(admin.id) === String(senderID)
+			const adminIDs =
+				(threadInfo.adminIDs || [])
+					.map(admin => String(admin.id));
+
+			if (!adminIDs.includes(botID)) {
+				return message.reply(
+					getLang("botAdmin")
+				);
+			}
+		} catch (error) {
+			console.error(
+				"[ANTILINK] Admin check:",
+				error
 			);
 
-			// Admin can send links
-			if (isAdmin) return;
+			return message.reply(
+				getLang("botAdmin")
+			);
+		}
 
-			// Delete the link message first
-			if (event.messageID) {
-				try {
-					await api.unsendMessage(
-						event.messageID
-					);
-				} catch (e) {}
+		// Save setting
+		try {
+			await threadsData.set(
+				threadID,
+				option === "on",
+				"data.antilink"
+			);
+
+			return message.reply(
+				option === "on"
+					? getLang("on")
+					: getLang("off")
+			);
+
+		} catch (error) {
+			console.error(
+				"[ANTILINK] Save error:",
+				error
+			);
+
+			return message.reply(
+				getLang("error")
+			);
+		}
+	},
+
+	// =====================================
+	// LINK DETECTION
+	// =====================================
+
+	onChat: async function ({
+		event,
+		api,
+		threadsData
+	}) {
+		const threadID = event.threadID;
+		const senderID = event.senderID;
+
+		if (!senderID || !event.body)
+			return;
+
+		// Check Anti-link status
+		let enabled = false;
+
+		try {
+			const threadData =
+				await threadsData.get(threadID);
+
+			enabled =
+				threadData?.data?.antilink === true;
+
+		} catch (error) {
+			console.error(
+				"[ANTILINK] Get data error:",
+				error
+			);
+			return;
+		}
+
+		if (!enabled)
+			return;
+
+		// =====================================
+		// LINK REGEX
+		// =====================================
+
+		const linkRegex =
+			/(https?:\/\/|www\.|[a-zA-Z0-9-]+\.(com|net|org|me|io|co|xyz|top|site|online|live|tk|ml|ga|cf|gg|ly|be|cc)(\/|\b))/i;
+
+		if (!linkRegex.test(event.body))
+			return;
+
+		// =====================================
+		// GET GROUP ADMINS
+		// =====================================
+
+		let threadInfo;
+
+		try {
+			threadInfo =
+				await api.getThreadInfo(threadID);
+		} catch (error) {
+			console.error(
+				"[ANTILINK] Thread info error:",
+				error
+			);
+			return;
+		}
+
+		const adminIDs =
+			(threadInfo.adminIDs || [])
+				.map(admin => String(admin.id));
+
+		// Admins are allowed to send links
+		if (
+			adminIDs.includes(
+				String(senderID)
+			)
+		) {
+			return;
+		}
+
+		// =====================================
+		// DELETE LINK MESSAGE
+		// =====================================
+
+		if (event.messageID) {
+			try {
+				await api.unsendMessage(
+					event.messageID
+				);
+			} catch (error) {
+				console.log(
+					"[ANTILINK] Cannot delete message:",
+					error.message
+				);
 			}
+		}
 
-			// Kick member
+		// =====================================
+		// KICK MEMBER
+		// =====================================
+
+		try {
 			await api.removeUserFromGroup(
 				senderID,
 				threadID
 			);
 
-			return api.sendMessage(
-				`🚫 | Link detected!\n\n👤 Member: ${event.senderID}\n⚡ Action: Kicked\n🔗 Reason: Sending link is not allowed.`,
+			await api.sendMessage(
+				"╔════════════════════╗\n" +
+				"║   🚫 𝗔𝗡𝗧𝗜𝗟𝗜𝗡𝗞   ║\n" +
+				"╚════════════════════╝\n\n" +
+				"⚠️ Link পাঠানো নিষিদ্ধ!\n" +
+				"👤 Member removed from group.\n" +
+				"🔗 Reason: Sending link.",
 				threadID
 			);
 
 		} catch (error) {
 			console.error(
-				"[ANTILINK ERROR]",
+				"[ANTILINK] Kick error:",
 				error
 			);
 
-			return api.sendMessage(
-				"❌ | Link detect হয়েছে, কিন্তু member-কে kick করা যায়নি। Bot-এর group admin permission আছে কিনা check করুন.",
-				threadID
-			);
+			try {
+				await api.sendMessage(
+					"⚠️ Link detected!\n" +
+					"❌ Member-কে kick করা যায়নি।\n" +
+					"Bot-এর Group Admin permission check করুন.",
+					threadID
+				);
+			} catch (e) {}
 		}
 	}
 };
