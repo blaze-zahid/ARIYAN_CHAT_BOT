@@ -1,56 +1,225 @@
 module.exports = {
 	config: {
 		name: "kick",
-		version: "1.3",
-		author: "NTKhang",
+		version: "2.0",
+		author: "NTKhang | Fixed by SK HABIBULLA",
 		countDown: 5,
 		role: 1,
+
 		description: {
 			vi: "Kick thành viên khỏi box chat",
-			en: "Kick member out of chat box"
+			en: "Kick member out of the chat"
 		},
+
 		category: "owner",
+
 		guide: {
-			vi: "   {pn} @tags: dùng để kick những người được tag",
-			en: "   {pn} @tags: use to kick members who are tagged"
+			vi: "   {pn} @tags: kick người được tag\n"
+				+ "   {pn}: reply tin nhắn của người cần kick",
+
+			en: "   {pn} @tags: kick tagged members\n"
+				+ "   {pn}: reply to the message of the member you want to kick"
 		}
 	},
 
 	langs: {
 		vi: {
-			needAdmin: "Vui lòng thêm quản trị viên cho bot trước khi sử dụng tính năng này"
+			needAdmin:
+				"❌ Bot cần quyền quản trị viên để sử dụng lệnh này.",
+
+			noTarget:
+				"❌ Vui lòng tag thành viên hoặc reply tin nhắn của thành viên cần kick.",
+
+			success:
+				"✅ Đã kick thành viên khỏi nhóm.",
+
+			error:
+				"❌ Không thể kick thành viên. Hãy kiểm tra quyền admin của bot.",
+
+			self:
+				"❌ Không thể kick chính bot."
 		},
+
 		en: {
-			needAdmin: "Please add admin for bot before using this feature"
+			needAdmin:
+				"❌ Bot must be a group admin to use this command.",
+
+			noTarget:
+				"❌ Please tag a member or reply to their message.",
+
+			success:
+				"✅ Member has been kicked from the group.",
+
+			error:
+				"❌ Unable to kick the member. Please check the bot's admin permission.",
+
+			self:
+				"❌ I can't kick myself."
 		}
 	},
 
-	onStart: async function ({ message, event, args, threadsData, api, getLang }) {
-		const adminIDs = await threadsData.get(event.threadID, "adminIDs");
-		if (!adminIDs.includes(api.getCurrentUserID()))
-			return message.reply(getLang("needAdmin"));
-		async function kickAndCheckError(uid) {
+	onStart: async function ({
+		message,
+		event,
+		threadsData,
+		api,
+		getLang
+	}) {
+
+		const threadID = event.threadID;
+		const botID = api.getCurrentUserID();
+
+		// ==========================================
+		// CHECK BOT ADMIN
+		// ==========================================
+
+		const adminIDs =
+			await threadsData.get(
+				threadID,
+				"adminIDs"
+			);
+
+		if (
+			!Array.isArray(adminIDs) ||
+			!adminIDs.includes(botID)
+		) {
+			return message.reply(
+				getLang("needAdmin")
+			);
+		}
+
+		// ==========================================
+		// TARGET USER LIST
+		// ==========================================
+
+		let targetIDs = [];
+
+		// ==========================================
+		// REPLY METHOD
+		// ==========================================
+
+		if (event.messageReply) {
+
+			const targetID =
+				event.messageReply.senderID;
+
+			if (targetID) {
+				targetIDs.push(targetID);
+			}
+		}
+
+		// ==========================================
+		// MENTION METHOD
+		// ==========================================
+
+		const mentions =
+			event.mentions || {};
+
+		const mentionIDs =
+			Object.keys(mentions);
+
+		if (mentionIDs.length > 0) {
+			targetIDs.push(...mentionIDs);
+		}
+
+		// ==========================================
+		// REMOVE DUPLICATES
+		// ==========================================
+
+		targetIDs = [
+			...new Set(targetIDs)
+		];
+
+		// ==========================================
+		// NO TARGET
+		// ==========================================
+
+		if (targetIDs.length === 0) {
+			return message.reply(
+				getLang("noTarget")
+			);
+		}
+
+		// ==========================================
+		// DON'T KICK BOT
+		// ==========================================
+
+		targetIDs =
+			targetIDs.filter(
+				uid =>
+					String(uid) !==
+					String(botID)
+			);
+
+		if (targetIDs.length === 0) {
+			return message.reply(
+				getLang("self")
+			);
+		}
+
+		// ==========================================
+		// KICK USERS
+		// ==========================================
+
+		let successCount = 0;
+		let failedCount = 0;
+
+		for (const uid of targetIDs) {
+
 			try {
-				await api.removeUserFromGroup(uid, event.threadID);
+
+				await api.removeUserFromGroup(
+					uid,
+					threadID
+				);
+
+				successCount++;
+
+			} catch (error) {
+
+				console.error(
+					`[KICK] Failed to kick ${uid}:`,
+					error.message
+				);
+
+				failedCount++;
 			}
-			catch (e) {
-				message.reply(getLang("needAdmin"));
-				return "ERROR";
-			}
 		}
-		if (!args[0]) {
-			if (!event.messageReply)
-				return message.SyntaxError();
-			await kickAndCheckError(event.messageReply.senderID);
+
+		// ==========================================
+		// RESULT MESSAGE
+		// ==========================================
+
+		if (
+			successCount === 0 &&
+			failedCount > 0
+		) {
+			return message.reply(
+				getLang("error")
+			);
 		}
-		else {
-			const uids = Object.keys(event.mentions);
-			if (uids.length === 0)
-				return message.SyntaxError();
-			if (await kickAndCheckError(uids.shift()) === "ERROR")
-				return;
-			for (const uid of uids)
-				api.removeUserFromGroup(uid, event.threadID);
+
+		if (failedCount === 0) {
+
+			return message.reply(
+				`╔════════════════════╗
+║     ⚡ 𝗞𝗜𝗖𝗞𝗘𝗗 ⚡     ║
+╚════════════════════╝
+
+✅ Successfully kicked: ${successCount}
+
+👮 Action: Group Moderation
+🤖 Bot: Online`
+			);
 		}
+
+		return message.reply(
+			`╔════════════════════╗
+║    ⚡ 𝗞𝗜𝗖𝗞 𝗥𝗘𝗦𝗨𝗟𝗧 ⚡    ║
+╚════════════════════╝
+
+✅ Kicked: ${successCount}
+❌ Failed: ${failedCount}`
+		);
 	}
 };
