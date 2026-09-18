@@ -1,15 +1,15 @@
 module.exports = {
   config: {
     name: "kickall",
-    version: "2.0",
+    version: "3.0",
     author: "NEXXO",
     countDown: 10,
     role: 2,
     shortDescription: {
-      en: "Kick all members from the group"
+      en: "Remove group members"
     },
     longDescription: {
-      en: "Remove all group members except the command user and the bot"
+      en: "Remove group members except the bot"
     },
     category: "owner",
     guide: {
@@ -17,89 +17,90 @@ module.exports = {
     }
   },
 
-  onStart: async function ({ api, event }) {
+  onStart: async function ({ api, event, message }) {
     const threadID = event.threadID;
-    const senderID = event.senderID;
 
     try {
-      const botID = api.getCurrentUserID();
-      const threadInfo = await api.getThreadInfo(threadID);
+      const botID = String(api.getCurrentUserID());
 
-      // Check whether the bot is a group admin
-      const adminIDs = (threadInfo.adminIDs || []).map(admin =>
-        typeof admin === "object" ? String(admin.id) : String(admin)
+      const info = await api.getThreadInfo(threadID);
+
+      if (!info) {
+        return message.reply("❌ Cannot get group information.");
+      }
+
+      // Get admin IDs
+      const adminIDs = (info.adminIDs || []).map(admin =>
+        String(typeof admin === "object" ? admin.id : admin)
       );
 
-      if (!adminIDs.includes(String(botID))) {
-        return api.sendMessage(
-          "❌ Bot must be a group admin before using this command.",
-          threadID
+      // Check bot admin
+      if (!adminIDs.includes(botID)) {
+        return message.reply(
+          "❌ BOT IS NOT ADMIN\n\n" +
+          "Make the bot account an admin of this group and try again."
         );
       }
 
-      // Members who will NOT be removed
-      const protectedIDs = [
-        String(senderID),
-        String(botID)
-      ];
+      // Get participants
+      const participants = (info.participantIDs || []).map(String);
 
-      // Get members to remove
-      const membersToKick = (threadInfo.participantIDs || [])
-        .map(String)
-        .filter(id => !protectedIDs.includes(id));
+      // Don't remove bot
+      const targets = participants.filter(id => id !== botID);
 
-      if (membersToKick.length === 0) {
-        return api.sendMessage(
-          "❌ There are no members available to kick.",
-          threadID
-        );
+      if (!targets.length) {
+        return message.reply("❌ No members found.");
       }
 
-      await api.sendMessage(
-        `⚠️ Starting kickall...\n👥 Members to remove: ${membersToKick.length}`,
-        threadID
+      await message.reply(
+        `⚠️ Starting...\n\n` +
+        `👥 Total members: ${targets.length}\n` +
+        `🤖 Bot: protected`
       );
 
       let success = 0;
       let failed = 0;
 
-      // Remove members one by one
-      for (const userID of membersToKick) {
+      for (const userID of targets) {
         try {
-          await api.removeUserFromGroup(userID, threadID);
+          await new Promise((resolve, reject) => {
+            api.removeUserFromGroup(
+              userID,
+              threadID,
+              err => {
+                if (err) reject(err);
+                else resolve();
+              }
+            );
+          });
+
           success++;
 
-          // Small delay to reduce rate-limit problems
-          await new Promise(resolve => setTimeout(resolve, 500));
-        } catch (error) {
+          // Prevent requests from being sent too quickly
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+        } catch (err) {
           failed++;
+
           console.log(
-            `Failed to remove ${userID}:`,
-            error?.message || error
+            `[KICKALL] Failed ${userID}:`,
+            err?.message || err
           );
         }
       }
 
-      return api.sendMessage(
-        `✅ Kickall finished.\n\n` +
+      return message.reply(
+        `✅ KICKALL FINISHED\n\n` +
         `👤 Removed: ${success}\n` +
-        `❌ Failed: ${failed}\n` +
-        `🛡️ Protected: You + Bot`,
-        threadID
+        `❌ Failed: ${failed}`
       );
 
-    } catch (error) {
-      console.error("kickall error:", error);
+    } catch (err) {
+      console.error("[KICKALL ERROR]", err);
 
-      return api.sendMessage(
-        `❌ Kickall failed.\n\n` +
-        `Reason: ${error?.message || "Unknown error"}`,
-        threadID
+      return message.reply(
+        `❌ ERROR\n\n${err?.message || err}`
       );
     }
   }
 };
-
-Important: "role: 2" means only the bot owner/admin level defined by your GoatBot system can execute "kickall"; it does not make the bot a Facebook group admin. The bot's Facebook account itself must have group-admin privileges for "removeUserFromGroup()" to work.
-
-Also, this version intentionally protects the command sender and the bot, so it won't remove either of them.
