@@ -54,7 +54,7 @@ module.exports = {
 
       await message.reply(
         `⚠️ Starting...\n\n` +
-        `👥 Total members: ${targets.length}\n` +
+        `👥 Total member: ${targets.length}\n` +
         `🤖 Bot: protected`
       );
 
